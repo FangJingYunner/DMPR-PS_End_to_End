@@ -16,7 +16,7 @@ def non_maximum_suppression(pred_points):
             j_x = pred_points[j][1].x
             j_y = pred_points[j][1].y
             # 0.0625 = 1 / 16
-            if abs(j_x - i_x) < 0.0625 and abs(j_y - i_y) < 0.0625:
+            if abs(j_x - i_x) < 0.0625 and abs(j_y - i_y) < 0.0625:#两个点在一个格子里
                 idx = i if pred_points[i][0] < pred_points[j][0] else j
                 suppressed[idx] = True
     if any(suppressed):

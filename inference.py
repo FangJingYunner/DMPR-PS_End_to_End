@@ -155,7 +155,8 @@ def detect_image(detector, device, args):
     """Demo for detecting images."""
     timer = Timer()
     while True:
-        image_file = input('Enter image file path: ')
+        # image_file = input('Enter image file path: ')
+        image_file = "/media/fjy/SHARE/dataset/ps2.0/testing/outdoor-slanted/17.jpg"
         image = cv.imread(image_file)
         timer.tic()
         pred_points = detect_marking_points(

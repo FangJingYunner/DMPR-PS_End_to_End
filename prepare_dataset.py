@@ -6,8 +6,7 @@ import os
 import random
 import cv2 as cv
 import numpy as np
-
-
+import PIL.Image as Image
 def get_parser():
     """Return argument parser for generating dataset."""
     parser = argparse.ArgumentParser()
@@ -107,6 +106,27 @@ def generate_dataset(args):
         with open(os.path.join(args.label_directory, label_file), 'r') as file:
             label = json.load(file)
         centralied_marks = np.array(label['marks'])
+
+        if len(centralied_marks.shape) == 1:
+            if centralied_marks[4] == 2:
+                print(os.path.join(args.image_directory, name + '.jpg'))
+        else:
+            for mark in centralied_marks:
+                if mark[4] == 2:
+                    print(os.path.join(args.image_directory, name + '.jpg'))
+                
+        # visualize
+        # for points in centralied_marks:
+        #     start_point = points[0:2]
+        #     end_point = points[2:4]
+        #     end_point =  [int(x) for x in end_point]
+        #     start_point = [int(x) for x in start_point]
+        #     cv.line(image, tuple(start_point), tuple(end_point), (0, 255, 0), 2)
+        # show_image = Image.fromarray(image)
+        # show_image.show()
+        
+        
+        
         if len(centralied_marks.shape) < 2:
             centralied_marks = np.expand_dims(centralied_marks, axis=0)
         centralied_marks[:, 0:4] -= 300.5
@@ -117,14 +137,15 @@ def generate_dataset(args):
 
         if args.dataset == 'test':
             continue
-        for angle in range(5, 360, 5):
-            rotated_marks = rotate_centralized_marks(centralied_marks, angle)
-            if boundary_check(rotated_marks) and overlap_check(rotated_marks):
-                rotated_image = rotate_image(image, angle)
-                output_name = os.path.join(
-                    args.output_directory, name + '_' + str(angle))
-                write_image_and_label(
-                    output_name, rotated_image, rotated_marks, name_list)
+        #生成不同方向的图片
+        # for angle in range(5, 360, 5):
+        #     rotated_marks = rotate_centralized_marks(centralied_marks, angle)
+        #     if boundary_check(rotated_marks) and overlap_check(rotated_marks):
+        #         rotated_image = rotate_image(image, angle)
+        #         output_name = os.path.join(
+        #             args.output_directory, name + '_' + str(angle))
+        #         write_image_and_label(
+        #             output_name, rotated_image, rotated_marks, name_list)
 
     if args.dataset == 'trainval':
         print("Dividing training set and validation set...")

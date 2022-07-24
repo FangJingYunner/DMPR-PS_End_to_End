@@ -50,9 +50,9 @@ def calc_precision_recall(ground_truths_list, predictions_list, match_labels):
             recalls.append(1.)
             precisions.append(0.)
             break
-        false_negatives = bisect.bisect_left(true_positive_list, thresh)
+        false_negatives = bisect.bisect_left(true_positive_list, thresh)#明明是对的，但是因为没过置信度阈值被判断成false
         true_positives = len(true_positive_list) - false_negatives
-        true_negatives = bisect.bisect_left(false_positive_list, thresh)
+        true_negatives = bisect.bisect_left(false_positive_list, thresh)#错误的预测，但是没过置信度阈值被过滤掉的
         false_positives = len(false_positive_list) - true_negatives
         recalls.append(true_positives / (true_positives+false_negatives))
         precisions.append(true_positives / (true_positives + false_positives))
@@ -64,5 +64,9 @@ def calc_average_precision(precisions, recalls):
     total_precision = 0.
     for i in range(11):
         index = next(conf[0] for conf in enumerate(recalls) if conf[1] >= i/10)
+        # for conf in enumerate(recalls):
+        #     if conf[1] >= i/10:
+        #         print(conf)
+        #         print(conf[0])
         total_precision += max(precisions[index:])
     return total_precision / 11

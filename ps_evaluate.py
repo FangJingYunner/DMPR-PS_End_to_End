@@ -48,6 +48,8 @@ def psevaluate_detector(args):
     ground_truths_list = []
     predictions_list = []
     for idx, label_file in enumerate(os.listdir(args.label_directory)):
+        # if ".jpg" in label_file:
+        #     continue
         name = os.path.splitext(label_file)[0]
         print(idx, name)
         image = cv.imread(os.path.join(args.image_directory, name + '.jpg'))
