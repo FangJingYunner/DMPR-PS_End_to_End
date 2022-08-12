@@ -6,8 +6,8 @@ from thop import profile
 from data import get_predicted_points, match_marking_points, calc_point_squre_dist, calc_point_direction_angle
 from data import ParkingSlotDataset
 from model import DirectionalPointDetector
-from train import generate_objective
-
+from train_end2end import generate_objective
+from inference import plot_points
 
 def is_gt_and_pred_matched(ground_truths, predictions, thresh):
     """Check if there is any false positive or false negative."""
@@ -54,7 +54,7 @@ def evaluate_detector(args):
         dp_detector.load_state_dict(torch.load(args.detector_weights))
     dp_detector.eval()
 
-    psdataset = ParkingSlotDataset(args.dataset_directory)
+    psdataset = ParkingSlotDataset(args)
     logger = util.Logger(enable_visdom=args.enable_visdom)
 
     total_loss = 0
@@ -69,9 +69,19 @@ def evaluate_detector(args):
         prediction = dp_detector(image)
         objective, gradient = generate_objective([marking_points], device)
         loss = (prediction - objective) ** 2
-        total_loss += torch.sum(loss*gradient).item()
+        # total_loss += torch.sum(loss*gradient).item()
 
-        pred_points = get_predicted_points(prediction[0], 0.01)
+        total_loss = torch.sum(loss * gradient).item() / loss.size(0)
+        train_loss = torch.sum(loss[:, 0, ...] * gradient[:, 0, ...]).item() / loss.size(0)
+        xy_loss = torch.sum(loss[:, 1:3, ...] * gradient[:, 1:3, ...]).item() / loss.size(0)
+        dxdy_loss = torch.sum(loss[:, 3:5, ...] * gradient[:, 3:5, ...]).item() / loss.size(0)
+        direction_loss = torch.sum(loss[:, 5:7, ...] * gradient[:, 5:7, ...]).item() / loss.size(0)
+        
+        pred_points = get_predicted_points(prediction[0], 0.2)
+        # get_predicted_points(prediction[0], 0.2)
+        image_np = image.detach().cpu().numpy().squeeze(0)
+        plot_points(image_np, pred_points)
+        
         predictions_list.append(pred_points)
 
         dists, angles = collect_error(marking_points, pred_points,

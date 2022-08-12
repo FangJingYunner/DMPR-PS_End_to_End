@@ -3,3 +3,4 @@
 __pycache__
 weights/*
 weight/*
+my_weights/*

@@ -5,7 +5,16 @@ from enum import Enum
 import config
 
 
-MarkingPoint = namedtuple('MarkingPoint', ['x', 'y', 'direction', 'shape'])
+# MarkingPoint = namedtuple('MarkingPoint', ['x', 'y', 'direction', 'shape'])
+
+MarkingPoint = namedtuple('MarkingPoint', ['x',
+                                           'y',
+                                           'lenSepLine_x',
+                                           'lenSepLine_y',
+                                           'lenEntryLine_x',
+                                           'lenEntryLine_y'])
+
+ParkingSlot = namedtuple('ParkingSlot',['x','y','dx','dy','direction'])
 Slot = namedtuple('Slot', ['x1', 'y1', 'x2', 'y2'])
 
 

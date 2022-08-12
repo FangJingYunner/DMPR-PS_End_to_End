@@ -5,44 +5,73 @@ import numpy as np
 import torch
 from torchvision.transforms import ToTensor
 import config
-from data import get_predicted_points, pair_marking_points, calc_point_squre_dist, pass_through_third_point
+from data import pair_marking_points, calc_point_squre_dist, pass_through_third_point,get_predicted_points_dmpr
 from model import DirectionalPointDetector
 from util import Timer
-
-
+from PIL import Image, ImageDraw, ImageFont
+from model_slot_det import get_model
+from process_0807 import get_predicted_points
 def plot_points(image, pred_points):
     """Plot marking points on the image."""
-    if not pred_points:
-        return
+
     height = image.shape[0]
     width = image.shape[1]
+
+    img2show = Image.fromarray(image)
+    imgdraw = ImageDraw.Draw(img2show)
+    if not pred_points:
+        return img2show
+    
+    color_bias = 0
     for confidence, marking_point in pred_points:
-        p0_x = width * marking_point.x - 0.5
-        p0_y = height * marking_point.y - 0.5
+        pa_x = width * marking_point.x - 0.5
+        pa_y = height * marking_point.y - 0.5
+        pb_x = width * (marking_point.x + marking_point.dx) - 0.5
+        pb_y = height * (marking_point.y + marking_point.dy) - 0.5
+
         cos_val = math.cos(marking_point.direction)
         sin_val = math.sin(marking_point.direction)
-        p1_x = p0_x + 50*cos_val
-        p1_y = p0_y + 50*sin_val
-        p2_x = p0_x - 50*sin_val
-        p2_y = p0_y + 50*cos_val
-        p3_x = p0_x + 50*sin_val
-        p3_y = p0_y - 50*cos_val
-        p0_x = int(round(p0_x))
-        p0_y = int(round(p0_y))
-        p1_x = int(round(p1_x))
-        p1_y = int(round(p1_y))
-        p2_x = int(round(p2_x))
-        p2_y = int(round(p2_y))
-        cv.line(image, (p0_x, p0_y), (p1_x, p1_y), (0, 0, 255), 2)
-        cv.putText(image, str(confidence), (p0_x, p0_y),
-                   cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
-        if marking_point.shape > 0.5:
-            cv.line(image, (p0_x, p0_y), (p2_x, p2_y), (0, 0, 255), 2)
-        else:
-            p3_x = int(round(p3_x))
-            p3_y = int(round(p3_y))
-            cv.line(image, (p2_x, p2_y), (p3_x, p3_y), (0, 0, 255), 2)
+        pd_x = pa_x + 50*cos_val
+        pd_y = pa_y + 50*sin_val
+        
+        pc_x = pb_x + 50*cos_val
+        pc_y = pb_y + 50*sin_val
+        
+        # cv.line(image, (pa_x, pa_y), (pb_x, pb_y), (0, 0, 255), 2)
 
+
+        imgdraw.line((pa_x, pa_y, pb_x,pb_y), fill=(80+color_bias,120+color_bias,120), width=8)
+        imgdraw.line((pa_x, pa_y, pd_x, pd_y), fill='red', width=8)
+        imgdraw.line((pc_x, pc_y, pb_x, pb_y), fill='yellow', width=8)
+
+        color_bias = color_bias + 50
+    # img2show.show()
+    return img2show
+        # cos_val = math.cos(marking_point.direction)
+        # sin_val = math.sin(marking_point.direction)
+        # p1_x = p0_x + 50*cos_val
+        # p1_y = p0_y + 50*sin_val
+        # p2_x = p0_x - 50*sin_val
+        # p2_y = p0_y + 50*cos_val
+        # p3_x = p0_x + 50*sin_val
+        # p3_y = p0_y - 50*cos_val
+        # p0_x = int(round(p0_x))
+        # p0_y = int(round(p0_y))
+        # p1_x = int(round(p1_x))
+        # p1_y = int(round(p1_y))
+        # p2_x = int(round(p2_x))
+        # p2_y = int(round(p2_y))
+        # cv.line(image, (p0_x, p0_y), (p1_x, p1_y), (0, 0, 255), 2)
+        # cv.putText(image, str(confidence), (p0_x, p0_y),
+        #            cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 0))
+        # if marking_point.shape > 0.5:
+        #     cv.line(image, (p0_x, p0_y), (p2_x, p2_y), (0, 0, 255), 2)
+        # else:
+        #     p3_x = int(round(p3_x))
+        #     p3_y = int(round(p3_y))
+        #     cv.line(image, (p2_x, p2_y), (p3_x, p3_y), (0, 0, 255), 2)
+    # img2show.show()
+    # pass
 
 def plot_slots(image, pred_points, slots):
     """Plot parking slots on the image."""
@@ -89,10 +118,16 @@ def preprocess_image(image):
     return torch.unsqueeze(ToTensor()(image), 0)
 
 
-def detect_marking_points(detector, image, thresh, device):
+def detect_marking_points(detector, image, thresh, device,isval=False):
     """Given image read from opencv, return detected marking points."""
-    prediction = detector(preprocess_image(image).to(device))
-    return get_predicted_points(prediction[0], thresh)
+    if isval:
+        prediction = detector(image)
+    else:
+        prediction = detector(preprocess_image(image).to(device))
+    
+    # return get_predicted_points_dmpr(prediction[0], thresh)
+    return get_predicted_points(prediction, thresh)
+
 
 
 def inference_slots(marking_points):
@@ -156,20 +191,37 @@ def detect_image(detector, device, args):
     timer = Timer()
     while True:
         # image_file = input('Enter image file path: ')
-        image_file = "/media/fjy/SHARE/dataset/ps2.0/testing/outdoor-slanted/17.jpg"
+
+        image_file = "/media/fjy/SHARE/dataset/ps2.0/testing/all/0288.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/p2_img115_2256.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/p2_img15_1800.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/p2_img13_1032.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/p2_img8_0186.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/img4_0867.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160725145113_488.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160725142318_088.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160722193621_572.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160722192751_4676.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160722192751_2304.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160722192751_760.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/20161111-05-291.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/20161109-09-13.jpg"
+        # image_file = "/media/fjy/SHARE/dataset/ps2.0/output_directory/train/image20160725145113_176.jpg"
         image = cv.imread(image_file)
         timer.tic()
         pred_points = detect_marking_points(
             detector, image, args.thresh, device)
         slots = None
-        if pred_points and args.inference_slot:
-            marking_points = list(list(zip(*pred_points))[1])
-            slots = inference_slots(marking_points)
+        # if pred_points and args.inference_slot:
+        #     marking_points = list(list(zip(*pred_points))[1])
+        #     slots = inference_slots(marking_points)
         timer.toc()
-        plot_points(image, pred_points)
-        plot_slots(image, pred_points, slots)
-        cv.imshow('demo', image)
-        cv.waitKey(1)
+        slotimg = plot_points(image, pred_points)
+        slotimg.show()
+
+        # plot_slots(image, pred_points, slots)
+        # cv.imshow('demo', image)
+        # cv.waitKey(1)
         if args.save:
             cv.imwrite('save.jpg', image, [int(cv.IMWRITE_JPEG_QUALITY), 100])
 
@@ -179,9 +231,12 @@ def inference_detector(args):
     args.cuda = not args.disable_cuda and torch.cuda.is_available()
     device = torch.device('cuda:' + str(args.gpu_id) if args.cuda else 'cpu')
     torch.set_grad_enabled(False)
-    dp_detector = DirectionalPointDetector(
-        3, args.depth_factor, config.NUM_FEATURE_MAP_CHANNEL).to(device)
-    dp_detector.load_state_dict(torch.load(args.detector_weights))
+    # dp_detector = DirectionalPointDetector(
+    #     3, args.depth_factor, config.NUM_FEATURE_MAP_CHANNEL).to(device)
+    
+    dp_detector = get_model().to(device)
+    
+    dp_detector.load_state_dict(torch.load(args.detector_weights,map_location='cuda:0'))
     dp_detector.eval()
     if args.mode == "image":
         detect_image(dp_detector, device, args)

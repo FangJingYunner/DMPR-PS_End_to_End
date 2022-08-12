@@ -6,7 +6,7 @@ import argparse
 INPUT_IMAGE_SIZE = 512
 # 0: confidence, 1: point_shape, 2: offset_x, 3: offset_y, 4: cos(direction),
 # 5: sin(direction)
-NUM_FEATURE_MAP_CHANNEL = 6
+NUM_FEATURE_MAP_CHANNEL = 7
 # image_size / 2^5 = 512 / 32 = 16
 FEATURE_MAP_SIZE = 16
 # Threshold used to filter marking points too close to image boundary
@@ -14,7 +14,10 @@ BOUNDARY_THRESH = 0.05
 
 # Thresholds to determine whether an detected point match ground truth.
 SQUARED_DISTANCE_THRESH = 0.000277778  # 10 pixel in 600*600 image
-DIRECTION_ANGLE_THRESH = 0.5235987755982988  # 30 degree in rad
+# SQUARED_DISTANCE_THRESH = 0.005  # 10 pixel in 600*600 image
+
+# DIRECTION_ANGLE_THRESH = 0.5235987755982988  # 30 degree in rad
+DIRECTION_ANGLE_THRESH = 0.1745  # 30 degree in rad
 
 VSLOT_MIN_DIST = 0.044771278151623496#应该是水平和垂直停车位的判断
 VSLOT_MAX_DIST = 0.1099427457599304
@@ -31,7 +34,8 @@ SEPARATOR_ANGLE_DIFF = 0.284967562063968 + 0.1384059287593468
 SLOT_SUPPRESSION_DOT_PRODUCT_THRESH = 0.8
 
 # precision = 0.995585, recall = 0.995805
-CONFID_THRESH_FOR_POINT = 0.11676871
+# CONFID_THRESH_FOR_POINT = 0.11676871
+CONFID_THRESH_FOR_POINT = 0.5676871
 
 
 def add_common_arguments(parser):
@@ -46,11 +50,22 @@ def add_common_arguments(parser):
                         help="Select which gpu to use.")
 
 
+
 def get_parser_for_training():
     """Return argument parser for training."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_directory', required=True,
                         help="The location of dataset.")
+    parser.add_argument('--labels_directory', required=True,
+                        help="The location of labels.")
+
+    parser.add_argument('--val_dataset_directory', required=True,
+                        help="The location of dataset.")
+    parser.add_argument('--val_labels_directory', required=True,
+                        help="The location of labels.")
+
+    
+    
     parser.add_argument('--optimizer_weights',
                         help="The weights of optimizer.")
     parser.add_argument('--batch_size', type=int, default=24,
@@ -63,6 +78,8 @@ def get_parser_for_training():
                         help="The learning rate of back propagation.")
     parser.add_argument('--enable_visdom', action='store_true',
                         help="Enable Visdom to visualize training progress")
+
+    
     add_common_arguments(parser)
     return parser
 
@@ -72,6 +89,8 @@ def get_parser_for_evaluation():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_directory', required=True,
                         help="The location of dataset.")
+    parser.add_argument('--labels_directory', required=True,
+                        help="The location of labels.")
     parser.add_argument('--enable_visdom', action='store_true',
                         help="Enable Visdom to visualize training progress")
     add_common_arguments(parser)

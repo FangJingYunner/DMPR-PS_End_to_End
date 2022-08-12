@@ -1,3 +1,3 @@
 """Network model related package."""
-from .detector import DirectionalPointDetector
+from .yolo_model import get_model
 # from .cspdarknet import CSPDarkNet

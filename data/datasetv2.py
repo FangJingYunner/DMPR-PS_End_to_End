@@ -5,7 +5,7 @@ import os.path
 import cv2
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
-from data.struct import MarkingPoint,ParkingSlot,Slot
+from data.struct import MarkingPoint,ParkingSlot
 import scipy.io as scio
 import math
 import numpy as np
@@ -33,6 +33,7 @@ class ParkingSlotDataset(Dataset):
         # for file in os.listdir(root):
         #     if file.endswith(".json"):
         #         self.sample_names.append(os.path.splitext(file)[0])
+        self.db = self._get_db()
         self.inputsize = 512
         self.ROT_FACTOR = 30
         self.TRANSLATE = 0.0
@@ -44,7 +45,6 @@ class ParkingSlotDataset(Dataset):
         self.HSV_V = 0.4
         self.lr_flip = True
         self.ud_flip = True
-        self.db = self._get_db()
 
     def _get_db(self):
         gt_db = []
@@ -52,51 +52,47 @@ class ParkingSlotDataset(Dataset):
         no_slot_count = 0
         for label in tqdm.tqdm(label_list):
             
-            if self.is_train == True:
-                if len(gt_db) > 20:
-                    return gt_db
-            else:
-                if len(gt_db) > 200:
-                    return gt_db
-                
+            if len(gt_db) > 20:
+                return gt_db
+            
             label_path = os.path.join(self.labelsroot,label)
             img_name = label.split(".")[0] + '.jpg'
             image_path = os.path.join(self.dataroot,img_name)
             with open(label_path, 'r') as file:
                 jsonlabel = json.load(file)
 
-                # centralied_marks = np.array(jsonlabel['marks'])
+                centralied_marks = np.array(jsonlabel['marks'])
                 slots = np.array(jsonlabel['slots'])
                 if len(slots) == 0:
                     no_slot_count += 1
                     continue
 
-                # if len(centralied_marks.shape) < 2:
-                #     centralied_marks = np.expand_dims(centralied_marks, axis=0)
-                # if len(slots.shape) < 2:
-                #     slots = np.expand_dims(slots, axis=0)
-                #
-                # # centralied_marks[:, 0:4] -= 300.5
-                # generated_slot = []
-                # # if len(slots) == 4 and isinstance(slots[0],int):
-                # #     slots = [slots]
-                #
-                # for slot in slots:
-                #     mark0 = centralied_marks[slot[0]-1]
-                #     mark1 = centralied_marks[slot[1]-1]
-                #     mark0 = mark0 - 300.5
-                #     mark1 = mark1 - 300.5
-                #     mark0 = (mark0 + 300) / 600
-                #     mark1 = (mark1 + 300) / 600
-                #
-                #     x1 = mark0[0]
-                #     y1 = mark0[1]
-                #
-                #     x2 = mark1[0]
-                #     y2 = mark1[1]
-                #
-                #     direction = math.atan2(mark0[3] - mark0[1], mark0[2] - mark0[0])
-                #     generated_slot.append([x1,y1,x2,y2,direction])
+                if len(centralied_marks.shape) < 2:
+                    centralied_marks = np.expand_dims(centralied_marks, axis=0)
+                if len(slots.shape) < 2:
+                    slots = np.expand_dims(slots, axis=0)
+                    
+                # centralied_marks[:, 0:4] -= 300.5
+                generated_slot = []
+                # if len(slots) == 4 and isinstance(slots[0],int):
+                #     slots = [slots]
+                
+                for slot in slots:
+                    mark0 = centralied_marks[slot[0]-1]
+                    mark1 = centralied_marks[slot[1]-1]
+                    mark0 = mark0 - 300.5
+                    mark1 = mark1 - 300.5
+                    mark0 = (mark0 + 300) / 600
+                    mark1 = (mark1 + 300) / 600
+                    
+                    x1 = mark0[0]
+                    y1 = mark0[1]
+
+                    x2 = mark1[0]
+                    y2 = mark1[1]
+                    
+                    direction = math.atan2(mark0[3] - mark0[1], mark0[2] - mark0[0])
+                    generated_slot.append([x1,y1,x2,y2,direction])
 
             rec = [{
                 'slot': jsonlabel,
@@ -154,82 +150,56 @@ class ParkingSlotDataset(Dataset):
             img2 = np.ascontiguousarray(image)
             img2 = self.image_transform(img2)
             
-            # marks = np.array(label["marks"])
-            # slots = np.array(label["slots"])
+            marks = np.array(label["marks"])
+            slots = np.array(label["slots"])
     
-            # if len(marks.shape) < 2:
-            #     marks = np.expand_dims(centralied_marks, axis=0)
-            # if len(slots.shape) < 2:
-            #     slots = np.expand_dims(slots, axis=0)
-            #
-            # n = len(slots)
-            # labels = []
-
-            slots = np.array(label['slots'])
-            if slots.size == 0:
-                print("no slot !!!!!!")
-                return []
+            if len(marks.shape) < 2:
+                marks = np.expand_dims(centralied_marks, axis=0)
             if len(slots.shape) < 2:
                 slots = np.expand_dims(slots, axis=0)
-            marks = np.array(label['marks'])
-            if len(marks.shape) < 2:
-                marks = np.expand_dims(marks, axis=0)
-            labels = []
-            for slot in slots:
-                mark_a = marks[slot[0] - 1]
-                mark_b = marks[slot[1] - 1]
-                # x1 = mark_a[0]
-                # y1 = mark_a[1]
-                # x2 = mark_b[0]
-                # y2 = mark_b[1]
-                coords = np.array([mark_a[0], mark_a[1], mark_b[0], mark_b[1]])
-                coords = (coords - 0.5) / 600
-                # labels.append(Slot(*coords))
-
-                direction = math.atan2(mark_a[3] - mark_a[1] , mark_a[2]  - mark_a[0] )
-                labels.append(
-                    MarkingPoint(*[float(coords[0]), float(coords[1]),float(math.cos(direction)),float(math.sin(direction)),float(coords[2] - coords[0]), float(coords[3] - coords[1])]))
                 
-            # if n:
-            #     for slot in slots:
-            #         mark0 = marks[slot[0] - 1][:4]
-            #         mark1 = marks[slot[1] - 1][:4]
-            #         # mark0 = mark0 - 300.5
-            #         # mark1 = mark1 - 300.5
-            #         mark0 = (mark0 / origin_height) * self.inputsize
-            #         mark1 = (mark1 / origin_height) * self.inputsize
-            #         mark = np.vstack((mark0, mark1))
-            #         xy = np.ones((4, 3))
-            #         xy[:, :2] = mark.reshape(4, 2)
-            #         M = np.eye(3)
-            #         xy = xy @ M.T
-            #         # if perspective:
-            #         #     xy = (xy[:, :2] / xy[:, 2:3]).reshape(1, 8)  # rescale
-            #         # else:  # affine
-            #         xy = xy[:, :2].reshape(1, 8)
-            #         mark0 = xy[:, [0, 1, 2, 3]]
-            #         mark1 = xy[:, [4, 5, 6, 7]]
-            #
-            #         mark0 = mark0 - self.inputsize / 2 + 0.5
-            #         mark1 = mark1 - self.inputsize / 2 + 0.5
-            #         mark0 = (mark0 + self.inputsize / 2) / self.inputsize
-            #         mark1 = (mark1 + self.inputsize / 2) / self.inputsize
-            #
-            #         # if use_ud_filp:
-            #         #     mark0[:, [1, 3]] = 1 - mark0[:, [1, 3]]
-            #         #     mark1[:, [1, 3]] = 1 - mark1[:, [1, 3]]
-            #         # if use_lr_flip:
-            #         #     mark0[:, [0, 2]] = 1 - mark0[:, [0, 2]]
-            #         #     mark1[:, [0, 2]] = 1 - mark1[:, [0, 2]]
-            #
-            #         x1 = mark0[:, 0]
-            #         y1 = mark0[:, 1]
-            #
-            #         x2 = mark1[:, 0]
-            #         y2 = mark1[:, 1]
-            #
-            #         direction = math.atan2(mark0[:, 3] - mark0[:, 1], mark0[:, 2] - mark0[:, 0])
-            #         labels.append(ParkingSlot(*[x1, y1, x2 - x1, y2 - y1, direction]))
+            n = len(slots)
+            labels = []
+            if n:
+                for slot in slots:
+                    mark0 = marks[slot[0] - 1][:4]
+                    mark1 = marks[slot[1] - 1][:4]
+                    # mark0 = mark0 - 300.5
+                    # mark1 = mark1 - 300.5
+                    mark0 = (mark0 / origin_height) * self.inputsize
+                    mark1 = (mark1 / origin_height) * self.inputsize
+                    mark = np.vstack((mark0, mark1))
+                    xy = np.ones((4, 3))
+                    xy[:, :2] = mark.reshape(4, 2)
+                    M = np.eye(3)
+                    xy = xy @ M.T
+                    # if perspective:
+                    #     xy = (xy[:, :2] / xy[:, 2:3]).reshape(1, 8)  # rescale
+                    # else:  # affine
+                    xy = xy[:, :2].reshape(1, 8)
+                    mark0 = xy[:, [0, 1, 2, 3]]
+                    mark1 = xy[:, [4, 5, 6, 7]]
+            
+                    mark0 = mark0 - self.inputsize / 2 + 0.5
+                    mark1 = mark1 - self.inputsize / 2 + 0.5
+                    mark0 = (mark0 + self.inputsize / 2) / self.inputsize
+                    mark1 = (mark1 + self.inputsize / 2) / self.inputsize
+            
+                    # if use_ud_filp:
+                    #     mark0[:, [1, 3]] = 1 - mark0[:, [1, 3]]
+                    #     mark1[:, [1, 3]] = 1 - mark1[:, [1, 3]]
+                    # if use_lr_flip:
+                    #     mark0[:, [0, 2]] = 1 - mark0[:, [0, 2]]
+                    #     mark1[:, [0, 2]] = 1 - mark1[:, [0, 2]]
+            
+                    x1 = mark0[:, 0]
+                    y1 = mark0[:, 1]
+            
+                    x2 = mark1[:, 0]
+                    y2 = mark1[:, 1]
+            
+                    direction = math.atan2(mark0[:, 3] - mark0[:, 1], mark0[:, 2] - mark0[:, 0])
+                    labels.append(ParkingSlot(*[x1, y1, x2 - x1, y2 - y1, direction]))
 
         # labels = torch.from_numpy(labels)
         # name = self.sample_names[index]

@@ -3,11 +3,14 @@ import math
 import numpy as np
 import torch
 import config
-from data.struct import MarkingPoint, detemine_point_shape
+from data.struct import MarkingPoint, detemine_point_shape,ParkingSlot
 
 
 def non_maximum_suppression(pred_points):
     """Perform non-maxmum suppression on marking points."""
+    if pred_points ==[]:
+        return pred_points
+    
     suppressed = [False] * len(pred_points)
     for i in range(len(pred_points) - 1):
         for j in range(i + 1, len(pred_points)):
@@ -28,7 +31,37 @@ def non_maximum_suppression(pred_points):
     return pred_points
 
 
-def get_predicted_points(prediction, thresh):
+def get_predicted_points(predictions, thresh):
+    """Get marking points from one predicted feature map."""
+    assert isinstance(predictions, torch.Tensor)
+    predictions = predictions.detach().cpu().numpy()
+    batchsize = predictions.shape[0]
+    result = []
+    for batch in range(batchsize):
+        prediction = predictions[batch,...]
+        predicted_points = []
+        for i in range(prediction.shape[1]):
+            for j in range(prediction.shape[2]):
+                if prediction[0, i, j] >= thresh:
+                    xval = (j + prediction[1, i, j]) / prediction.shape[2]
+                    yval = (i + prediction[2, i, j]) / prediction.shape[1]
+                    dx = prediction[3, i, j]
+                    dy = prediction[4, i, j]
+                    if not (config.BOUNDARY_THRESH <= xval <= 1-config.BOUNDARY_THRESH
+                            and config.BOUNDARY_THRESH <= yval <= 1-config.BOUNDARY_THRESH):
+                        continue
+                    cos_value = prediction[5, i, j]
+                    sin_value = prediction[6, i, j]
+                    direction = math.atan2(sin_value, cos_value)
+                    marking_point = MarkingPoint(
+                        xval, yval, dx, dy, direction)
+                    
+                    
+                    predicted_points.append((prediction[0, i, j], marking_point))
+        result.append(non_maximum_suppression(predicted_points))
+    return result
+
+def get_predicted_points_dmpr(prediction, thresh):
     """Get marking points from one predicted feature map."""
     assert isinstance(prediction, torch.Tensor)
     predicted_points = []
@@ -48,7 +81,6 @@ def get_predicted_points(prediction, thresh):
                     xval, yval, direction, prediction[1, i, j])
                 predicted_points.append((prediction[0, i, j], marking_point))
     return non_maximum_suppression(predicted_points)
-
 
 def pass_through_third_point(marking_points, i, j):
     """See whether the line between two points pass through a third point."""

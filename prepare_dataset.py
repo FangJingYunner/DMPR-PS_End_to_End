@@ -107,13 +107,27 @@ def generate_dataset(args):
             label = json.load(file)
         centralied_marks = np.array(label['marks'])
 
-        if len(centralied_marks.shape) == 1:
-            if centralied_marks[4] == 2:
-                print(os.path.join(args.image_directory, name + '.jpg'))
-        else:
-            for mark in centralied_marks:
-                if mark[4] == 2:
-                    print(os.path.join(args.image_directory, name + '.jpg'))
+
+        # slots = label["slots"]
+        # if len(slots) == 4 and isinstance(slots[0],int):
+        #     if slots[2] != 1 or slots[3] != 90:
+        #         print(os.path.join(args.image_directory, name + '.jpg'))
+        # else:
+        #     for slot in slots:
+        #         try:
+        #             if slot[2] != 1 or slot[3] != 90:
+        #                 print(os.path.join(args.image_directory, name + '.jpg'))
+        #         except:
+        #             aa = 1
+        #             pass
+        
+        # if len(centralied_marks.shape) == 1:
+        #     if centralied_marks[4] == 2:
+        #         print(os.path.join(args.image_directory, name + '.jpg'))
+        # else:
+        #     for mark in centralied_marks:
+        #         if mark[4] == 2:
+        #             print(os.path.join(args.image_directory, name + '.jpg'))
                 
         # visualize
         # for points in centralied_marks:
