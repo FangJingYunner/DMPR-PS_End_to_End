@@ -17,7 +17,8 @@ SQUARED_DISTANCE_THRESH = 0.000277778  # 10 pixel in 600*600 image
 # SQUARED_DISTANCE_THRESH = 0.005  # 10 pixel in 600*600 image
 
 # DIRECTION_ANGLE_THRESH = 0.5235987755982988  # 30 degree in rad
-DIRECTION_ANGLE_THRESH = 0.1745  # 30 degree in rad
+# DIRECTION_ANGLE_THRESH = 0.1745  # 30 degree in rad
+DIRECTION_ANGLE_THRESH = 0.08725
 
 VSLOT_MIN_DIST = 0.044771278151623496#应该是水平和垂直停车位的判断
 VSLOT_MAX_DIST = 0.1099427457599304
@@ -91,6 +92,12 @@ def get_parser_for_evaluation():
                         help="The location of dataset.")
     parser.add_argument('--labels_directory', required=True,
                         help="The location of labels.")
+    
+    parser.add_argument('--val_dataset_directory', required=True,
+                        help="The location of dataset.")
+    parser.add_argument('--val_labels_directory', required=True,
+                        help="The location of labels.")
+    
     parser.add_argument('--enable_visdom', action='store_true',
                         help="Enable Visdom to visualize training progress")
     add_common_arguments(parser)
@@ -104,6 +111,17 @@ def get_parser_for_ps_evaluation():
                         help="The location of dataset.")
     parser.add_argument('--image_directory', required=True,
                         help="The location of dataset.")
+    
+    parser.add_argument('--val_dataset_directory', required=True,
+                        help="The location of dataset.")
+    parser.add_argument('--val_labels_directory', required=True,
+                        help="The location of labels.")
+    
+    parser.add_argument('--batch_size', type=int, default=6,
+                        help="Batch size.")
+    parser.add_argument('--data_loading_workers', type=int, default=6,
+                        help="Number of workers for data loading.")
+    
     parser.add_argument('--enable_visdom', action='store_true',
                         help="Enable Visdom to visualize training progress")
     add_common_arguments(parser)

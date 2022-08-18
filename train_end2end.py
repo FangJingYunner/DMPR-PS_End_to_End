@@ -10,6 +10,25 @@ import util
 from model import DirectionalPointDetector
 from model_slot_det import get_model
 from ps_evaluate import psevaluate_train
+import numpy as np
+
+# def seed_all(seed):
+#     if not seed:
+#         seed = 1
+#
+#     print("[ Using Seed : ", seed, " ]")
+#
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
+#     torch.cuda.manual_seed(seed)
+#     np.random.seed(seed)
+#     random.seed(seed)
+#     torch.backends.cudnn.deterministic = True
+#     torch.backends.cudnn.benchmark = False
+#
+# pytorch_random_seed = 1
+# seed_all(pytorch_random_seed)
+
 def plot_prediction(logger, image, marking_points, prediction):
     """Plot the ground truth and prediction of a random sample in a batch."""
     rand_sample = random.randint(0, image.size(0)-1)
@@ -31,7 +50,7 @@ def generate_objective(marking_points_batch, device):
                             config.FEATURE_MAP_SIZE, config.FEATURE_MAP_SIZE,
                             device=device)
     gradient = torch.zeros_like(objective)
-    gradient[:, 0].fill_(1)
+    gradient[:, 0].fill_(0.1)
     for batch_idx, marking_points in enumerate(marking_points_batch):
         for marking_point in marking_points:
             col = math.floor(marking_point.x * config.FEATURE_MAP_SIZE)
@@ -41,8 +60,8 @@ def generate_objective(marking_points_batch, device):
             # Makring Point Shape Regression
             # objective[batch_idx, 1, row, col] = marking_point.shape
             # Offset Regression
-            objective[batch_idx, 1, row, col] = marking_point.x*16 - col
-            objective[batch_idx, 2, row, col] = marking_point.y*16 - row
+            objective[batch_idx, 1, row, col] = marking_point.x*config.FEATURE_MAP_SIZE - col
+            objective[batch_idx, 2, row, col] = marking_point.y*config.FEATURE_MAP_SIZE - row
             # Direction Regression
             objective[batch_idx, 3, row, col] = marking_point.dx
             objective[batch_idx, 4, row, col] = marking_point.dy
@@ -51,7 +70,7 @@ def generate_objective(marking_points_batch, device):
             objective[batch_idx, 6, row, col] = math.sin(direction)
             # Assign Gradient
             gradient[batch_idx, 1:7, row, col].fill_(1.)
-            # gradient[batch_idx, 1:5, row, col].fill_(5.)
+            gradient[batch_idx, 1:5, row, col].fill_(15.)
     return objective, gradient
 
 
@@ -86,16 +105,19 @@ def train_detector(args):
     data_loader = DataLoader(data.ParkingSlotDataset(args,is_train=True),
                              batch_size=args.batch_size, shuffle=True,
                              num_workers=args.data_loading_workers,
-                             collate_fn=lambda x: list(zip(*x)))
+                             collate_fn=lambda x: list(zip(*x)),
+                             pin_memory = True)
 
     val_loader = DataLoader(data.ParkingSlotDataset(args,is_train=False),
                              batch_size=args.batch_size, shuffle=True,
                              num_workers=args.data_loading_workers,
-                             collate_fn=lambda x: list(zip(*x)))
+                             collate_fn=lambda x: list(zip(*x)),
+                             pin_memory = True)
     
     psevaluate_train(args, dp_detector, val_loader, device)
 
     Best_Precision = 0
+    Best_epoch = 0
     for epoch_idx in range(args.num_epochs):
         for iter_idx, (images, marking_points) in enumerate(data_loader):
             images = torch.stack(images).to(device)
@@ -109,7 +131,7 @@ def train_detector(args):
             prediction = dp_detector(images)
             objective, gradient = generate_objective(marking_points, device)
             loss = (prediction - objective) ** 2
-            # loss.backward(gradient)
+            loss.backward(gradient)
             optimizer.step()
 
             total_loss = torch.sum(loss*gradient).item() / loss.size(0)
@@ -128,18 +150,19 @@ def train_detector(args):
         #     torch.save(dp_detector.state_dict(),
         #                'my_weights/dp_detector_%d.pth' % epoch_idx)
         #     torch.save(optimizer.state_dict(), 'my_weights/optimizer.pth')
-        
-        if epoch_idx > 1:
-            print("-------starteval------")
-            Precision = psevaluate_train(args,dp_detector,val_loader,device)
-            print("Precision: {} | Best_Precision: {}".format(Precision, Best_Precision))
 
+        if epoch_idx > 200:
+            print("-------starteval------")
+            Precision = psevaluate_train(args, dp_detector, val_loader, device)
+    
             if Precision > Best_Precision:
                 torch.save(dp_detector.state_dict(),
                            'my_weights/dp_detector_%d.pth' % epoch_idx)
                 torch.save(optimizer.state_dict(), 'my_weights/optimizer.pth')
-        
-            # dp_detector.train()
+                Best_Precision = Precision
+                Best_epoch = epoch_idx
+            print("Precision: {} | Best_Precision_epoch{}: {}".format(Precision, Best_epoch, Best_Precision))
+            dp_detector.train()
 
 if __name__ == '__main__':
     train_detector(config.get_parser_for_training().parse_args())

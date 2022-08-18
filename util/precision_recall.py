@@ -36,7 +36,7 @@ def get_confidence_list(ground_truths_list, predictions_list, match_labels):
     return true_positive_list, false_positive_list
 
 
-def calc_precision_recall(ground_truths_list, predictions_list, match_labels):
+def calc_precision_recallv1(ground_truths_list, predictions_list, match_labels):
     """Adjust threshold to get mutiple precision recall sample."""
     true_positive_list, false_positive_list = get_confidence_list(
         ground_truths_list, predictions_list, match_labels)

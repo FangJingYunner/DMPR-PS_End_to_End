@@ -14,6 +14,7 @@ import random
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 import torch
+import config
 
 class ParkingSlotDataset(Dataset):
     """Parking slot dataset."""
@@ -33,9 +34,9 @@ class ParkingSlotDataset(Dataset):
         # for file in os.listdir(root):
         #     if file.endswith(".json"):
         #         self.sample_names.append(os.path.splitext(file)[0])
-        self.inputsize = 512
+        self.inputsize = config.INPUT_IMAGE_SIZE
         self.ROT_FACTOR = 30
-        self.TRANSLATE = 0.0
+        self.TRANSLATE = 0.2
         self.SCALE_FACTOR = 0.0
         self.SHEAR = 0.0
         self.is_train = is_train
@@ -55,9 +56,9 @@ class ParkingSlotDataset(Dataset):
             if self.is_train == True:
                 if len(gt_db) > 20:
                     return gt_db
-            else:
-                if len(gt_db) > 200:
-                    return gt_db
+            # else:
+            #     if len(gt_db) > 200:
+            #         return gt_db
                 
             label_path = os.path.join(self.labelsroot,label)
             img_name = label.split(".")[0] + '.jpg'
@@ -97,13 +98,19 @@ class ParkingSlotDataset(Dataset):
                 #
                 #     direction = math.atan2(mark0[3] - mark0[1], mark0[2] - mark0[0])
                 #     generated_slot.append([x1,y1,x2,y2,direction])
-
-            rec = [{
-                'slot': jsonlabel,
-                'image' : image_path
-
-            }]
-
+            if self.is_train:
+                rec = [{
+                    'slot': jsonlabel,
+                    'image' : image_path
+                }]
+            else:
+                rec = [{
+                    'slot': jsonlabel,
+                    'image': image_path,
+                    'img_name': img_name
+        
+                }]
+                
             gt_db += rec
         print("train data num: {}".format(len(gt_db)))
         print("not slot count: {}".format(no_slot_count))
@@ -238,7 +245,10 @@ class ParkingSlotDataset(Dataset):
         # with open(os.path.join(self.root, name + '.json'), 'r') as file:
         #     for label in json.load(file):
         #         marking_points.append(MarkingPoint(*label))
-        return img2, labels
+        if self.is_train:
+            return img2, labels
+        else:
+            return img2, labels, data["img_name"]
 
     def __len__(self):
         return len(self.db)

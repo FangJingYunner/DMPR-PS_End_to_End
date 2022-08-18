@@ -7,6 +7,10 @@ import random
 import cv2 as cv
 import numpy as np
 import PIL.Image as Image
+
+import config
+
+
 def get_parser():
     """Return argument parser for generating dataset."""
     parser = argparse.ArgumentParser()
@@ -60,7 +64,7 @@ def write_image_and_label(name, image, centralied_marks, name_list):
     """Write image and label with given name."""
     name_list.append(os.path.basename(name))
     print("Processing NO.%d samples: %s..." % (len(name_list), name_list[-1]))
-    image = cv.resize(image, (512, 512))
+    image = cv.resize(image, (config.INPUT_IMAGE_SIZE, config.INPUT_IMAGE_SIZE))
     cv.imwrite(name + '.jpg', image, [int(cv.IMWRITE_JPEG_QUALITY), 100])
     with open(name + '.json', 'w') as file:
         json.dump(generalize_marks(centralied_marks), file)

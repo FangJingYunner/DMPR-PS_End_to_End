@@ -146,7 +146,7 @@ class YOLOXHead(nn.Module):
 def get_model():
     # super-parameters in config
     depth = 1/3
-    width = 1
+    width = 0.5
     expand = 0.5
     ind = 3 # 1:gray 3:RGB, 3 is better, 1 is general
     inc = [256, 512, 1024]
@@ -164,7 +164,7 @@ def get_model():
 if __name__ == "__main__":
     model = get_model()
     model.eval()
-    x = torch.randn(1, 3, 512, 512)
+    x = torch.randn(1, 3, 416, 416)
     y = model(x)
     print(model)
     # torch.save(model.state_dict(), 'cat.pth')

@@ -11,26 +11,37 @@ from util import Timer
 from PIL import Image, ImageDraw, ImageFont
 from model_slot_det import get_model
 from process_0807 import get_predicted_points
+import config
+from util import *
+
 def plot_points(image, pred_points):
     """Plot marking points on the image."""
-
+    if type(image)==torch.Tensor:
+        image = tensor2array(image)
+        
     height = image.shape[0]
     width = image.shape[1]
 
     img2show = Image.fromarray(image)
     imgdraw = ImageDraw.Draw(img2show)
     if not pred_points:
-        return img2show
+        return img2show,()
     
     color_bias = 0
     for confidence, marking_point in pred_points:
         pa_x = width * marking_point.x - 0.5
         pa_y = height * marking_point.y - 0.5
-        pb_x = width * (marking_point.x + marking_point.dx) - 0.5
-        pb_y = height * (marking_point.y + marking_point.dy) - 0.5
+        pb_x = width * (marking_point.x + marking_point.lenEntryLine_x) - 0.5
+        pb_y = height * (marking_point.y + marking_point.lenEntryLine_y) - 0.5
 
-        cos_val = math.cos(marking_point.direction)
-        sin_val = math.sin(marking_point.direction)
+        # direction = math.atan2(pb_y - pa_y, pb_x - pa_x)
+        # direction = math.atan2(pb_x - pa_x, pb_y - pa_y)
+        # cos_value = prediction[5, i, j]
+        # sin_value = prediction[6, i, j]
+        direction = math.atan2(marking_point.lenSepLine_y, marking_point.lenSepLine_x)
+
+        cos_val = math.cos(direction)
+        sin_val = math.sin(direction)
         pd_x = pa_x + 50*cos_val
         pd_y = pa_y + 50*sin_val
         
@@ -46,7 +57,7 @@ def plot_points(image, pred_points):
 
         color_bias = color_bias + 50
     # img2show.show()
-    return img2show
+    return img2show ,((pa_x,pa_y),(pb_x,pb_y),(pd_x,pd_y))
         # cos_val = math.cos(marking_point.direction)
         # sin_val = math.sin(marking_point.direction)
         # p1_x = p0_x + 50*cos_val
@@ -113,8 +124,8 @@ def plot_slots(image, pred_points, slots):
 
 def preprocess_image(image):
     """Preprocess numpy image to torch tensor."""
-    if image.shape[0] != 512 or image.shape[1] != 512:
-        image = cv.resize(image, (512, 512))
+    if image.shape[0] != config.INPUT_IMAGE_SIZE or image.shape[1] != config.INPUT_IMAGE_SIZE:
+        image = cv.resize(image, (config.INPUT_IMAGE_SIZE, config.INPUT_IMAGE_SIZE))
     return torch.unsqueeze(ToTensor()(image), 0)
 
 
